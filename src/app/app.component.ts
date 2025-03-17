@@ -1,36 +1,69 @@
-import { Component, resource, signal } from '@angular/core';
+import { Component, resource, signal, WritableSignal } from '@angular/core';
+import {MatButtonModule} from '@angular/material/button';
 
 @Component({
   selector: 'app-root',
+  imports: [MatButtonModule],
   template: `
-    <h1>WebSocket</h1>
-    <ul>
-      @for(message of messages(); let i = $index; track i){
-        <li>{{ message }}</li>
-      }
-    </ul>
-    <button (click)="test()">Test</button>
+    <div class="h-screen w-screen flex p-2 gap-2">
+
+      <button mat-raised-button (click)="submit()">test submit</button>
+
+      <div class="border border-gray-300 rounded p-2 w-1/2 overflow-y-auto">
+        <h1 class="text-xl font-bold">Messages</h1>
+        <p class="text-slate-600">ws/http://localhost:3000/ws</p>
+
+        <div class="overflow-y-auto">
+          @for(message of user1Messages();let i = $index; track i){
+            <p>{{message}}</p>
+          }
+        </div>
+      </div>
+
+      <div class="border border-gray-300 rounded p-2 w-1/2 overflow-y-auto">
+        <h1 class="text-xl font-bold">Messages</h1>
+        <p class="text-slate-600">ws/http://localhost:3001/ws</p>
+
+        <div class="overflow-y-auto">
+          @for(message of user2Messages();let i = $index; track i){
+            <p>{{message}}</p>
+          }
+        </div>
+      </div>
+    </div>
   `
 })
 export class AppComponent {
 
-  ws:WebSocket;
-  messages = signal<unknown[]>([]);
+  wsUser1:WebSocket = new WebSocket('ws://localhost:3000/ws');
+  wsUser2:WebSocket = new WebSocket('ws://localhost:3001/ws');
 
-  constructor() {
-    this.ws = new WebSocket('ws://localhost:3000/ws');
-    this.ws.onopen = () => {
-      console.log('connected');
+  user1Messages = signal<unknown[]>([]);
+  user2Messages = signal<unknown[]>([]);
+
+  ngOnInit(){
+    this.fetchWebSocketInitialize(this.wsUser1,this.user1Messages);
+    this.fetchWebSocketInitialize(this.wsUser2,this.user2Messages);
+  }
+
+  fetchWebSocketInitialize(ws:WebSocket,messages:WritableSignal<unknown[]>){
+    // ws = new WebSocket('ws://localhost:3000/ws');
+    ws.onopen = () => {
+      console.log(`${ws.url} is connected`);
     };
-    this.ws.onmessage = (event) => {
-      console.log('received: %s', event.data);
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log(`${ws.url} received:`, data);
+      messages.update(messages => [...messages, data['message']]);
     };
-    this.ws.onclose = () => {
+    ws.onclose = () => {
       console.log('disconnected');
     };
   }
 
-  test(){
-    this.ws.send('test');
+  submit(){
+    this.wsUser1.send('submit user1');
+
+    // this.wsUser2.send('submit user2');
   }
 }
